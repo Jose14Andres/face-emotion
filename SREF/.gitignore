@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+data/*.csv
+.deepface/
+weights/
+*.h5
+*_resultado.*
+lote_test/
+face.jpg

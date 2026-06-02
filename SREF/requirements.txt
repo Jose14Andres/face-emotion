@@ -1,3 +1,6 @@
 deepface==0.0.93
 opencv-python==4.10.0.84
 tf-keras==2.19.0
+scikit-learn==1.6.0
+matplotlib==3.10.0
+pytest==8.3.4
