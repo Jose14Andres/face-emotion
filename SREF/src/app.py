@@ -14,9 +14,14 @@ from pathlib import Path
 
 import cv2
 
+import os
+
 from src.detector  import detectar_rostros
 from src.analizador import analizar_emocion
 from src.registro  import registrar
+
+# Intentar detectar si hay un entorno gráfico disponible
+_HEADLESS = os.environ.get("DISPLAY") is None
 
 # Color índigo en BGR para recuadros y etiquetas
 _COLOR = (79, 70, 229)
@@ -72,6 +77,10 @@ def dibujar(frame, x, y, w, h, emocion, confianza):
 
 def modo_webcam():
     """Captura video de la cámara 0, detecta rostros y analiza emociones."""
+    if _HEADLESS:
+        print("Error: El modo webcam requiere un entorno gráfico (DISPLAY).")
+        sys.exit(1)
+
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print(
@@ -173,10 +182,60 @@ def modo_imagen(ruta_str):
     cv2.imwrite(str(ruta_resultado), frame)
     print(f"\nImagen anotada guardada en: {ruta_resultado.resolve()}")
 
-    # Mostrar resultado en ventana (cerrar con cualquier tecla)
-    cv2.imshow(f"SREF — {ruta.name} (cualquier tecla para cerrar)", frame)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # Mostrar resultado en ventana si no estamos en modo headless
+    if not _HEADLESS:
+        cv2.imshow(f"SREF — {ruta.name} (cualquier tecla para cerrar)", frame)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
+# ---------------------------------------------------------------------------
+# Modo lote
+# ---------------------------------------------------------------------------
+
+def modo_lote(ruta_carpeta):
+    """
+    Procesa todas las imágenes de una carpeta.
+    """
+    carpeta = Path(ruta_carpeta)
+
+    if not carpeta.exists() or not carpeta.is_dir():
+        print(
+            f"Error: no se encontró la carpeta '{carpeta}' o no es un directorio.\n"
+            "Verifica que la ruta sea correcta."
+        )
+        sys.exit(1)
+
+    extensiones = ('.jpg', '.jpeg', '.png', '.bmp', '.webp')
+    imagenes = [f for f in carpeta.iterdir() if f.suffix.lower() in extensiones]
+
+    if not imagenes:
+        print(f"No se encontraron imágenes en la carpeta '{carpeta}'.")
+        return
+
+    print(f"Procesando lote de {len(imagenes)} imágenes en: {carpeta.name}")
+
+    for ruta_img in imagenes:
+        # Reutilizamos la lógica de modo_imagen pero sin mostrar ventanas
+        frame = cv2.imread(str(ruta_img))
+        if frame is None:
+            print(f"  [Error] No se pudo leer la imagen: {ruta_img.name}")
+            continue
+
+        rostros = detectar_rostros(frame)
+        print(f"  Imagen: {ruta_img.name} - Rostros: {len(rostros)}")
+
+        for i, (x, y, w, h) in enumerate(rostros):
+            recorte = frame[y:y + h, x:x + w]
+            emocion, confianza = analizar_emocion(recorte)
+            dibujar(frame, x, y, w, h, emocion, confianza)
+            registrar(emocion, confianza, origen=ruta_img.name)
+
+        # Guardar copia anotada
+        ruta_resultado = ruta_img.parent / f"{ruta_img.stem}_resultado{ruta_img.suffix}"
+        cv2.imwrite(str(ruta_resultado), frame)
+
+    print(f"\nProceso de lote finalizado. Resultados guardados en {carpeta.resolve()}")
 
 
 # ---------------------------------------------------------------------------
@@ -191,12 +250,19 @@ def main():
     parser.add_argument(
         "--imagen",
         metavar="RUTA",
-        help="Ruta a un archivo de imagen. Sin este argumento arranca la webcam.",
+        help="Ruta a un archivo de imagen.",
+    )
+    parser.add_argument(
+        "--lote",
+        metavar="CARPETA",
+        help="Ruta a una carpeta de imágenes para procesar en lote.",
     )
     args = parser.parse_args()
 
     if args.imagen:
         modo_imagen(args.imagen)
+    elif args.lote:
+        modo_lote(args.lote)
     else:
         modo_webcam()
 
