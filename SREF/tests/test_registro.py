@@ -18,6 +18,19 @@ def test_registrar_crea_csv(tmp_path, monkeypatch):
         assert reader[1][2] == "Feliz"
         assert reader[1][3] == "95.00"
 
+from unittest.mock import patch
+
+def test_registrar_error(capsys):
+    def mock_open(*args, **kwargs):
+        raise IOError("Simulated error")
+
+    with patch("builtins.open", mock_open):
+        registrar("Feliz", 95.0, origen="test")
+
+    captured = capsys.readouterr()
+    assert "[registro] No se pudo escribir en el CSV: Simulated error" in captured.out
+
+
 def test_registrar_append(tmp_path, monkeypatch):
     test_csv = tmp_path / "test_registro.csv"
     monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
