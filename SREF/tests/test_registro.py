@@ -7,6 +7,7 @@ def test_registrar_crea_csv(tmp_path, monkeypatch):
     test_csv = tmp_path / "test_registro.csv"
     monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
     monkeypatch.setattr("src.registro._DIR_DATA", tmp_path)
+    monkeypatch.setattr("src.registro._csv_inicializado", False)
 
     registrar("Feliz", 95.0, origen="test")
 
@@ -35,6 +36,7 @@ def test_registrar_append(tmp_path, monkeypatch):
     test_csv = tmp_path / "test_registro.csv"
     monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
     monkeypatch.setattr("src.registro._DIR_DATA", tmp_path)
+    monkeypatch.setattr("src.registro._csv_inicializado", False)
 
     registrar("Triste", 80.0, origen="img1")
     registrar("Enojo", 70.0, origen="img2")
