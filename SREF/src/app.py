@@ -146,7 +146,7 @@ def modo_imagen(ruta_str):
 
     if not ruta.exists():
         print(
-            f"Error: no se encontró el archivo '{ruta}'.\n"
+            f"Error: no se encontró el archivo {str(ruta)!r}.\n"
             "Verifica que la ruta sea correcta."
         )
         sys.exit(1)
@@ -154,12 +154,12 @@ def modo_imagen(ruta_str):
     frame = cv2.imread(str(ruta))
     if frame is None:
         print(
-            f"Error: no se pudo leer la imagen '{ruta}'.\n"
+            f"Error: no se pudo leer la imagen {str(ruta)!r}.\n"
             "Asegúrate de que sea un formato válido (JPG, PNG, BMP, etc.)."
         )
         sys.exit(1)
 
-    print(f"Procesando imagen: {ruta.name}")
+    print(f"Procesando imagen: {str(ruta.name)!r}")
 
     rostros = detectar_rostros(frame)
 
@@ -201,7 +201,7 @@ def modo_lote(ruta_carpeta):
 
     if not carpeta.exists() or not carpeta.is_dir():
         print(
-            f"Error: no se encontró la carpeta '{carpeta}' o no es un directorio.\n"
+            f"Error: no se encontró la carpeta {str(carpeta)!r} o no es un directorio.\n"
             "Verifica que la ruta sea correcta."
         )
         sys.exit(1)
@@ -210,20 +210,20 @@ def modo_lote(ruta_carpeta):
     imagenes = [f for f in carpeta.iterdir() if f.suffix.lower() in extensiones]
 
     if not imagenes:
-        print(f"No se encontraron imágenes en la carpeta '{carpeta}'.")
+        print(f"No se encontraron imágenes en la carpeta {str(carpeta)!r}.")
         return
 
-    print(f"Procesando lote de {len(imagenes)} imágenes en: {carpeta.name}")
+    print(f"Procesando lote de {len(imagenes)} imágenes en: {str(carpeta.name)!r}")
 
     for ruta_img in imagenes:
         # Reutilizamos la lógica de modo_imagen pero sin mostrar ventanas
         frame = cv2.imread(str(ruta_img))
         if frame is None:
-            print(f"  [Error] No se pudo leer la imagen: {ruta_img.name}")
+            print(f"  [Error] No se pudo leer la imagen: {str(ruta_img.name)!r}")
             continue
 
         rostros = detectar_rostros(frame)
-        print(f"  Imagen: {ruta_img.name} - Rostros: {len(rostros)}")
+        print(f"  Imagen: {str(ruta_img.name)!r} - Rostros: {len(rostros)}")
 
         for i, (x, y, w, h) in enumerate(rostros):
             recorte = frame[y:y + h, x:x + w]
