@@ -1,6 +1,6 @@
 import csv
 import os
-from src.registro import registrar, _RUTA_CSV
+from src.registro import registrar
 
 def test_registrar_crea_csv(tmp_path, monkeypatch):
     # Mocking _RUTA_CSV to use a temporary directory
