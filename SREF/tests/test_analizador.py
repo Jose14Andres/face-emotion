@@ -1,4 +1,3 @@
-import numpy as np
 from src.analizador import EMOCIONES_ES, analizar_emocion
 
 def test_emociones_es_mapping():
