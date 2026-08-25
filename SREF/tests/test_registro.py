@@ -1,4 +1,5 @@
 import csv
+from src.registro import registrar, _RUTA_CSV
 import os
 from src.registro import registrar
 
