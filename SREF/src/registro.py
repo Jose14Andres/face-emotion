@@ -52,6 +52,10 @@ def registrar(emocion, confianza, origen="webcam"):
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        # Sanitizar 'origen' para evitar inyección de fórmulas CSV
+        if isinstance(origen, str) and origen.startswith(("=", "+", "-", "@")):
+            origen = f"'{origen}"
+
         with open(_RUTA_CSV, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([timestamp, origen, emocion, f"{confianza:.2f}"])
