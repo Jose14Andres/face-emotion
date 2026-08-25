@@ -206,7 +206,7 @@ def modo_lote(ruta_carpeta):
         )
         sys.exit(1)
 
-    extensiones = ('.jpg', '.jpeg', '.png', '.bmp', '.webp')
+    extensiones = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
     imagenes = [f for f in carpeta.iterdir() if f.suffix.lower() in extensiones]
 
     if not imagenes:

@@ -18,12 +18,19 @@ _RUTA_CSV = _DIR_DATA / "registro.csv"
 # Columnas del CSV (orden fijo)
 _ENCABEZADO = ["timestamp", "origen", "emocion", "confianza"]
 
+# Flag to avoid checking the filesystem on every log entry
+_csv_inicializado = False
+
 
 def _inicializar_csv():
     """
     Crea data/ y registro.csv con encabezado si aún no existen.
     Se llama automáticamente antes de cada escritura.
     """
+    global _csv_inicializado
+    if _csv_inicializado:
+        return
+
     _DIR_DATA.mkdir(parents=True, exist_ok=True)
 
     # Solo escribe el encabezado si el archivo es nuevo o está vacío
@@ -31,6 +38,8 @@ def _inicializar_csv():
         with open(_RUTA_CSV, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(_ENCABEZADO)
+
+    _csv_inicializado = True
 
 
 def registrar(emocion, confianza, origen="webcam"):
@@ -51,6 +60,10 @@ def registrar(emocion, confianza, origen="webcam"):
         _inicializar_csv()
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Sanitizar 'origen' para evitar inyección de fórmulas CSV
+        if isinstance(origen, str) and origen.startswith(("=", "+", "-", "@")):
+            origen = f"'{origen}"
 
         with open(_RUTA_CSV, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
