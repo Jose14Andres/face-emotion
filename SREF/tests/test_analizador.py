@@ -66,3 +66,29 @@ def test_analizar_emocion_success(mock_analyze):
         enforce_detection=False,
         silent=True,
     )
+
+
+@patch('src.analizador.DeepFace.analyze')
+def test_analizar_emocion_untranslated_fallback(mock_analyze):
+    # Mocking DeepFace to return an unknown emotion not in EMOCIONES_ES
+    mock_analyze.return_value = [
+        {
+            "emotion": {
+                "confused": 88.5,
+                "happy": 10.0,
+                "neutral": 1.5
+            }
+        }
+    ]
+
+    # Dummy numpy array for face
+    rostro = np.zeros((10, 10, 3), dtype=np.uint8)
+
+    # Call the function
+    result = analizar_emocion(rostro)
+
+    # Verify result - should fallback to capitalized key
+    assert result == ("Confused", 88.5)
+
+    # Verify mock was called
+    mock_analyze.assert_called_once()
