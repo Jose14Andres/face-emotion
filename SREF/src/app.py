@@ -26,6 +26,9 @@ _HEADLESS = os.environ.get("DISPLAY") is None
 # Color índigo en BGR para recuadros y etiquetas
 _COLOR = (79, 70, 229)
 
+# Límite máximo de tamaño de archivo (20 MB en bytes)
+_MAX_FILE_SIZE = 20 * 1024 * 1024
+
 
 # ---------------------------------------------------------------------------
 # Función auxiliar de dibujo — reutilizada en ambos modos
@@ -151,6 +154,13 @@ def modo_imagen(ruta_str):
         )
         sys.exit(1)
 
+    if os.path.getsize(str(ruta)) > _MAX_FILE_SIZE:
+        print(
+            f"Error: el archivo {ruta!r} supera el límite de tamaño permitido "
+            f"({_MAX_FILE_SIZE / (1024*1024):.0f} MB)."
+        )
+        sys.exit(1)
+
     frame = cv2.imread(str(ruta))
     if frame is None:
         print(
@@ -216,6 +226,13 @@ def modo_lote(ruta_carpeta):
     print(f"Procesando lote de {len(imagenes)} imágenes en: {carpeta.name}")
 
     for ruta_img in imagenes:
+        if os.path.getsize(str(ruta_img)) > _MAX_FILE_SIZE:
+            print(
+                f"  [Error] El archivo {ruta_img.name!r} supera el límite "
+                f"({_MAX_FILE_SIZE / (1024*1024):.0f} MB). Saltando."
+            )
+            continue
+
         # Reutilizamos la lógica de modo_imagen pero sin mostrar ventanas
         frame = cv2.imread(str(ruta_img))
         if frame is None:
