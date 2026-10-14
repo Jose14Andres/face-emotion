@@ -68,3 +68,25 @@ def test_registrar_formula_injection(tmp_path, monkeypatch):
         assert len(reader) == 5 # Header + 4 rows
         for i, origen in enumerate(malicious_origens, start=1):
             assert reader[i][1] == f"'{origen}"
+
+def test_registrar_formula_injection_whitespace(tmp_path, monkeypatch):
+    test_csv = tmp_path / "test_registro.csv"
+    monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
+    monkeypatch.setattr("src.registro._DIR_DATA", tmp_path)
+    monkeypatch.setattr("src.registro._csv_inicializado", False)
+
+    malicious_origens = [
+        " =cmd|' /C calc'!A0",
+        "  +1-1",
+        "\t-1+1",
+        " \t @SUM(1+1)"
+    ]
+
+    for origen in malicious_origens:
+        registrar("Neutral", 50.0, origen=origen)
+
+    with open(test_csv, "r", encoding="utf-8") as f:
+        reader = list(csv.reader(f))
+        assert len(reader) == 5 # Header + 4 rows
+        for i, origen in enumerate(malicious_origens, start=1):
+            assert reader[i][1] == f"'{origen}"
