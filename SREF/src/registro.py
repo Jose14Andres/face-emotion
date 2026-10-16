@@ -42,32 +42,44 @@ def _inicializar_csv():
     _csv_inicializado = True
 
 
-def registrar(emocion, confianza, origen="webcam"):
+def registrar(emocion=None, confianza=None, origen="webcam", lote=None):
     """
-    Añade una fila de detección al CSV.
+    Añade una fila (o un lote de filas) de detección al CSV.
 
     Parámetros
     ----------
-    emocion : str
+    emocion : str, opcional
         Emoción detectada en español (p. ej. "Feliz").
-    confianza : float
+    confianza : float, opcional
         Porcentaje de confianza de la emoción dominante (0.0 – 100.0).
     origen : str, opcional
         Fuente de la detección: "webcam" o el nombre del archivo de imagen.
         Por defecto "webcam".
+    lote : list de tuplas, opcional
+        Lista de detecciones en el formato (emocion, confianza, origen).
+        Si se proporciona, se ignoran los parámetros individuales y se escribe el lote.
     """
     try:
         _inicializar_csv()
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Sanitizar 'origen' para evitar inyección de fórmulas CSV
-        if isinstance(origen, str) and origen.lstrip().startswith(("=", "+", "-", "@")):
-            origen = f"'{origen}"
-
         with open(_RUTA_CSV, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow([timestamp, origen, emocion, f"{confianza:.2f}"])
+
+            if lote:
+                filas = []
+                for e, c, o in lote:
+                    # Sanitizar 'origen' para evitar inyección de fórmulas CSV
+                    if isinstance(o, str) and o.lstrip().startswith(("=", "+", "-", "@")):
+                        o = f"'{o}"
+                    filas.append([timestamp, o, e, f"{c:.2f}"])
+                writer.writerows(filas)
+            elif emocion is not None and confianza is not None:
+                # Sanitizar 'origen' para evitar inyección de fórmulas CSV
+                if isinstance(origen, str) and origen.lstrip().startswith(("=", "+", "-", "@")):
+                    origen = f"'{origen}"
+                writer.writerow([timestamp, origen, emocion, f"{confianza:.2f}"])
 
     except Exception as error:
         # El fallo de escritura no debe detener el resto de la aplicación
