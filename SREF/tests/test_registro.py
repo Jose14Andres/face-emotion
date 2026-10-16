@@ -52,6 +52,7 @@ def test_registrar_formula_injection(tmp_path, monkeypatch):
     test_csv = tmp_path / "test_registro.csv"
     monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
     monkeypatch.setattr("src.registro._DIR_DATA", tmp_path)
+    monkeypatch.setattr("src.registro._csv_inicializado", False)
 
     malicious_origens = [
         "=cmd|' /C calc'!A0",
