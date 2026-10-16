@@ -52,6 +52,7 @@ def test_registrar_formula_injection(tmp_path, monkeypatch):
     test_csv = tmp_path / "test_registro.csv"
     monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
     monkeypatch.setattr("src.registro._DIR_DATA", tmp_path)
+    monkeypatch.setattr("src.registro._csv_inicializado", False)
 
     malicious_origens = [
         "=cmd|' /C calc'!A0",
@@ -68,6 +69,49 @@ def test_registrar_formula_injection(tmp_path, monkeypatch):
         assert len(reader) == 5 # Header + 4 rows
         for i, origen in enumerate(malicious_origens, start=1):
             assert reader[i][1] == f"'{origen}"
+
+def test_registrar_lote(tmp_path, monkeypatch):
+    test_csv = tmp_path / "test_registro.csv"
+    monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
+    monkeypatch.setattr("src.registro._DIR_DATA", tmp_path)
+    monkeypatch.setattr("src.registro._csv_inicializado", False)
+
+    from src.registro import registrar_lote
+    detecciones = [
+        ("Feliz", 95.0, "img1.jpg"),
+        ("Triste", 80.0, "img2.jpg"),
+        ("Neutral", 50.0, "=cmd|' /C calc'!A0")
+    ]
+    registrar_lote(detecciones)
+
+    with open(test_csv, "r", encoding="utf-8") as f:
+        reader = list(csv.reader(f))
+        assert len(reader) == 4  # Header + 3 rows
+        # Check first row
+        assert reader[1][1] == "img1.jpg"
+        assert reader[1][2] == "Feliz"
+        assert reader[1][3] == "95.00"
+        # Check second row
+        assert reader[2][1] == "img2.jpg"
+        assert reader[2][2] == "Triste"
+        assert reader[2][3] == "80.00"
+        # Check formula injection sanitization in third row
+        assert reader[3][1] == "'=cmd|' /C calc'!A0"
+        assert reader[3][2] == "Neutral"
+        assert reader[3][3] == "50.00"
+
+def test_registrar_lote_empty(tmp_path, monkeypatch):
+    test_csv = tmp_path / "test_registro.csv"
+    monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
+    monkeypatch.setattr("src.registro._DIR_DATA", tmp_path)
+    monkeypatch.setattr("src.registro._csv_inicializado", False)
+
+    from src.registro import registrar_lote
+    registrar_lote([])
+
+    # Ensure no file is created when detections list is empty
+    assert not test_csv.exists()
+
 
 def test_registrar_formula_injection_whitespace(tmp_path, monkeypatch):
     test_csv = tmp_path / "test_registro.csv"

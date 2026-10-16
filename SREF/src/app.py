@@ -18,7 +18,7 @@ import os
 
 from src.detector  import detectar_rostros
 from src.analizador import analizar_emocion
-from src.registro  import registrar
+from src.registro  import registrar, registrar_lote
 
 # Intentar detectar si hay un entorno gráfico disponible
 _HEADLESS = os.environ.get("DISPLAY") is None
@@ -110,12 +110,14 @@ def modo_webcam():
         # Analizar y registrar 1 de cada 5 frames para mantener fluidez
         if num_frame % 5 == 0:
             cache = {}
+            detecciones = []
             for i, (x, y, w, h) in enumerate(rostros):
                 recorte = frame[y:y + h, x:x + w]
                 emocion, confianza = analizar_emocion(recorte)
                 cache[i] = (emocion, confianza)
-                # Registrar cada detección en el CSV
-                registrar(emocion, confianza, origen="webcam")
+                # Acumular cada detección para el CSV
+                detecciones.append((emocion, confianza, "webcam"))
+            registrar_lote(detecciones)
 
         # Dibujar usando el último resultado disponible en caché
         for i, (x, y, w, h) in enumerate(rostros):
@@ -179,13 +181,16 @@ def modo_imagen(ruta_str):
         print(f"Rostros detectados: {len(rostros)}")
 
     # Analizar, dibujar y registrar cada rostro
+    detecciones = []
     for i, (x, y, w, h) in enumerate(rostros):
         recorte = frame[y:y + h, x:x + w]
         emocion, confianza = analizar_emocion(recorte)
 
         print(f"  Rostro {i + 1}: {emocion} ({confianza:.1f}%)")
         dibujar(frame, x, y, w, h, emocion, confianza)
-        registrar(emocion, confianza, origen=ruta.name)
+        detecciones.append((emocion, confianza, ruta.name))
+
+    registrar_lote(detecciones)
 
     # Guardar copia anotada junto al archivo original
     ruta_resultado = ruta.parent / f"{ruta.stem}_resultado{ruta.suffix}"
@@ -242,11 +247,14 @@ def modo_lote(ruta_carpeta):
         rostros = detectar_rostros(frame)
         print(f"  Imagen: {ruta_img.name} - Rostros: {len(rostros)}")
 
+        detecciones = []
         for i, (x, y, w, h) in enumerate(rostros):
             recorte = frame[y:y + h, x:x + w]
             emocion, confianza = analizar_emocion(recorte)
             dibujar(frame, x, y, w, h, emocion, confianza)
-            registrar(emocion, confianza, origen=ruta_img.name)
+            detecciones.append((emocion, confianza, ruta_img.name))
+
+        registrar_lote(detecciones)
 
         # Guardar copia anotada
         ruta_resultado = ruta_img.parent / f"{ruta_img.stem}_resultado{ruta_img.suffix}"
