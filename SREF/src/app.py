@@ -18,7 +18,7 @@ import os
 
 from src.detector  import detectar_rostros
 from src.analizador import analizar_emocion
-from src.registro  import registrar
+from src.registro  import registrar, registrar_lote
 
 # Intentar detectar si hay un entorno gráfico disponible
 _HEADLESS = os.environ.get("DISPLAY") is None
@@ -232,6 +232,8 @@ def modo_lote(ruta_carpeta):
 
     print(f"Procesando lote de {len(imagenes)} imágenes en: {carpeta.name}")
 
+    resultados_lote = []
+
     for ruta_img in imagenes:
         if os.path.getsize(str(ruta_img)) > _MAX_FILE_SIZE:
             print(
@@ -254,6 +256,7 @@ def modo_lote(ruta_carpeta):
             recorte = frame[y:y + h, x:x + w]
             emocion, confianza = analizar_emocion(recorte)
             dibujar(frame, x, y, w, h, emocion, confianza)
+            resultados_lote.append((emocion, confianza, ruta_img.name))
             entradas.append((emocion, confianza, ruta_img.name))
 
         if entradas:
@@ -262,6 +265,9 @@ def modo_lote(ruta_carpeta):
         # Guardar copia anotada
         ruta_resultado = ruta_img.parent / f"{ruta_img.stem}_resultado{ruta_img.suffix}"
         cv2.imwrite(str(ruta_resultado), frame)
+
+    if resultados_lote:
+        registrar_lote(resultados_lote)
 
     print(f"\nProceso de lote finalizado. Resultados guardados en {carpeta.resolve()}")
 
