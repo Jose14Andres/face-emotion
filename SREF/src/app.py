@@ -18,7 +18,7 @@ import os
 
 from src.detector  import detectar_rostros
 from src.analizador import analizar_emocion
-from src.registro  import registrar
+from src.registro  import registrar, registrar_lote
 
 # Intentar detectar si hay un entorno gráfico disponible
 _HEADLESS = os.environ.get("DISPLAY") is None
@@ -111,6 +111,7 @@ def modo_webcam():
         if num_frame % 5 == 0:
             cache = {}
             registros_lote = []
+            entradas = []
             for i, (x, y, w, h) in enumerate(rostros):
                 recorte = frame[y:y + h, x:x + w]
                 emocion, confianza = analizar_emocion(recorte)
@@ -120,6 +121,10 @@ def modo_webcam():
             # Registrar todas las detecciones del frame en una sola operación I/O
             if registros_lote:
                 registrar(registros_lote)
+                entradas.append((emocion, confianza, "webcam"))
+
+            if entradas:
+                registrar(lote=entradas)
 
         # Dibujar usando el último resultado disponible en caché
         for i, (x, y, w, h) in enumerate(rostros):
@@ -184,6 +189,7 @@ def modo_imagen(ruta_str):
 
     # Analizar, dibujar y registrar cada rostro
     registros_lote = []
+    entradas = []
     for i, (x, y, w, h) in enumerate(rostros):
         recorte = frame[y:y + h, x:x + w]
         emocion, confianza = analizar_emocion(recorte)
@@ -194,6 +200,10 @@ def modo_imagen(ruta_str):
 
     if registros_lote:
         registrar(registros_lote)
+        entradas.append((emocion, confianza, ruta.name))
+
+    if entradas:
+        registrar(lote=entradas)
 
     # Guardar copia anotada junto al archivo original
     ruta_resultado = ruta.parent / f"{ruta.stem}_resultado{ruta.suffix}"
@@ -233,6 +243,8 @@ def modo_lote(ruta_carpeta):
 
     print(f"Procesando lote de {len(imagenes)} imágenes en: {carpeta.name}")
 
+    resultados_lote = []
+
     for ruta_img in imagenes:
         if os.path.getsize(str(ruta_img)) > _MAX_FILE_SIZE:
             print(
@@ -251,6 +263,7 @@ def modo_lote(ruta_carpeta):
         print(f"  Imagen: {ruta_img.name} - Rostros: {len(rostros)}")
 
         registros_lote = []
+        entradas = []
         for i, (x, y, w, h) in enumerate(rostros):
             recorte = frame[y:y + h, x:x + w]
             emocion, confianza = analizar_emocion(recorte)
@@ -259,10 +272,18 @@ def modo_lote(ruta_carpeta):
 
         if registros_lote:
             registrar(registros_lote)
+            resultados_lote.append((emocion, confianza, ruta_img.name))
+            entradas.append((emocion, confianza, ruta_img.name))
+
+        if entradas:
+            registrar(lote=entradas)
 
         # Guardar copia anotada
         ruta_resultado = ruta_img.parent / f"{ruta_img.stem}_resultado{ruta_img.suffix}"
         cv2.imwrite(str(ruta_resultado), frame)
+
+    if resultados_lote:
+        registrar_lote(resultados_lote)
 
     print(f"\nProceso de lote finalizado. Resultados guardados en {carpeta.resolve()}")
 
