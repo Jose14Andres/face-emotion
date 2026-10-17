@@ -18,12 +18,19 @@ _RUTA_CSV = _DIR_DATA / "registro.csv"
 # Columnas del CSV (orden fijo)
 _ENCABEZADO = ["timestamp", "origen", "emocion", "confianza"]
 
+# Flag to avoid checking the filesystem on every log entry
+_csv_inicializado = False
+
 
 def _inicializar_csv():
     """
     Crea data/ y registro.csv con encabezado si aún no existen.
     Se llama automáticamente antes de cada escritura.
     """
+    global _csv_inicializado
+    if _csv_inicializado:
+        return
+
     _DIR_DATA.mkdir(parents=True, exist_ok=True)
 
     # Solo escribe el encabezado si el archivo es nuevo o está vacío
@@ -32,32 +39,110 @@ def _inicializar_csv():
             writer = csv.writer(f)
             writer.writerow(_ENCABEZADO)
 
+    _csv_inicializado = True
 
-def registrar(emocion, confianza, origen="webcam"):
+
+def registrar(emocion, confianza=None, origen="webcam"):
     """
-    Añade una fila de detección al CSV.
+    Añade una o varias filas de detección al CSV.
 
     Parámetros
     ----------
-    emocion : str
+    emocion : str o list
+        Emoción detectada en español (p. ej. "Feliz"), o una lista de diccionarios
+        con claves 'emocion', 'confianza' y 'origen'.
+def registrar(emocion=None, confianza=None, origen="webcam", lote=None):
+    """
+    Añade una fila (o un lote de filas) de detección al CSV.
+
+    Parámetros
+    ----------
+    emocion : str, opcional
         Emoción detectada en español (p. ej. "Feliz").
-    confianza : float
+    confianza : float, opcional
         Porcentaje de confianza de la emoción dominante (0.0 – 100.0).
     origen : str, opcional
         Fuente de la detección: "webcam" o el nombre del archivo de imagen.
         Por defecto "webcam".
+    lote : list de tuplas, opcional
+        Lista de detecciones en el formato (emocion, confianza, origen).
+        Si se proporciona, se ignoran los parámetros individuales y se escribe el lote.
     """
     try:
         _inicializar_csv()
 
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if isinstance(emocion, list):
+            registros = emocion
+        else:
+            registros = [{'emocion': emocion, 'confianza': confianza, 'origen': origen}]
 
+        filas = []
+        for reg in registros:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            reg_origen = reg.get('origen', 'webcam')
+            reg_emocion = reg.get('emocion', '')
+            reg_confianza = reg.get('confianza', 0.0)
+
+            # Sanitizar 'origen' para evitar inyección de fórmulas CSV
+            if isinstance(reg_origen, str) and reg_origen.lstrip().startswith(("=", "+", "-", "@")):
+                reg_origen = f"'{reg_origen}"
+
+            filas.append([timestamp, reg_origen, reg_emocion, f"{reg_confianza:.2f}"])
+
+        if filas:
+            with open(_RUTA_CSV, "a", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerows(filas)
         with open(_RUTA_CSV, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow([timestamp, origen, emocion, f"{confianza:.2f}"])
+
+            if lote:
+                filas = []
+                for e, c, o in lote:
+                    # Sanitizar 'origen' para evitar inyección de fórmulas CSV
+                    if isinstance(o, str) and o.lstrip().startswith(("=", "+", "-", "@")):
+                        o = f"'{o}"
+                    filas.append([timestamp, o, e, f"{c:.2f}"])
+                writer.writerows(filas)
+            elif emocion is not None and confianza is not None:
+                # Sanitizar 'origen' para evitar inyección de fórmulas CSV
+                if isinstance(origen, str) and origen.lstrip().startswith(("=", "+", "-", "@")):
+                    origen = f"'{origen}"
+                writer.writerow([timestamp, origen, emocion, f"{confianza:.2f}"])
 
     except Exception as error:
         # El fallo de escritura no debe detener el resto de la aplicación
+        print(f"[registro] No se pudo escribir en el CSV: {error}")
+
+
+def registrar_lote(registros):
+    """
+    Añade múltiples filas de detección al CSV en una sola operación de escritura.
+
+    Parámetros
+    ----------
+    registros : list of tuple
+        Lista de tuplas con el formato (emocion, confianza, origen).
+    """
+    if not registros:
+        return
+
+    try:
+        _inicializar_csv()
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        filas = []
+        for emocion, confianza, origen in registros:
+            # Sanitizar 'origen' para evitar inyección de fórmulas CSV
+            if isinstance(origen, str) and origen.lstrip().startswith(("=", "+", "-", "@")):
+                origen = f"'{origen}"
+            filas.append([timestamp, origen, emocion, f"{confianza:.2f}"])
+
+        with open(_RUTA_CSV, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerows(filas)
+
+    except Exception as error:
         print(f"[registro] No se pudo escribir en el CSV: {error}")
 
 

@@ -18,13 +18,16 @@ import os
 
 from src.detector  import detectar_rostros
 from src.analizador import analizar_emocion
-from src.registro  import registrar
+from src.registro  import registrar, registrar_lote
 
 # Intentar detectar si hay un entorno gráfico disponible
 _HEADLESS = os.environ.get("DISPLAY") is None
 
 # Color índigo en BGR para recuadros y etiquetas
 _COLOR = (79, 70, 229)
+
+# Límite máximo de tamaño de archivo (20 MB en bytes)
+_MAX_FILE_SIZE = 20 * 1024 * 1024
 
 
 # ---------------------------------------------------------------------------
@@ -107,12 +110,21 @@ def modo_webcam():
         # Analizar y registrar 1 de cada 5 frames para mantener fluidez
         if num_frame % 5 == 0:
             cache = {}
+            registros_lote = []
+            entradas = []
             for i, (x, y, w, h) in enumerate(rostros):
                 recorte = frame[y:y + h, x:x + w]
                 emocion, confianza = analizar_emocion(recorte)
                 cache[i] = (emocion, confianza)
-                # Registrar cada detección en el CSV
-                registrar(emocion, confianza, origen="webcam")
+                registros_lote.append({'emocion': emocion, 'confianza': confianza, 'origen': 'webcam'})
+
+            # Registrar todas las detecciones del frame en una sola operación I/O
+            if registros_lote:
+                registrar(registros_lote)
+                entradas.append((emocion, confianza, "webcam"))
+
+            if entradas:
+                registrar(lote=entradas)
 
         # Dibujar usando el último resultado disponible en caché
         for i, (x, y, w, h) in enumerate(rostros):
@@ -146,20 +158,27 @@ def modo_imagen(ruta_str):
 
     if not ruta.exists():
         print(
-            f"Error: no se encontró el archivo '{ruta}'.\n"
+            f"Error: no se encontró el archivo {str(ruta)!r}.\n"
             "Verifica que la ruta sea correcta."
+        )
+        sys.exit(1)
+
+    if os.path.getsize(str(ruta)) > _MAX_FILE_SIZE:
+        print(
+            f"Error: el archivo {ruta!r} supera el límite de tamaño permitido "
+            f"({_MAX_FILE_SIZE / (1024*1024):.0f} MB)."
         )
         sys.exit(1)
 
     frame = cv2.imread(str(ruta))
     if frame is None:
         print(
-            f"Error: no se pudo leer la imagen '{ruta}'.\n"
+            f"Error: no se pudo leer la imagen {str(ruta)!r}.\n"
             "Asegúrate de que sea un formato válido (JPG, PNG, BMP, etc.)."
         )
         sys.exit(1)
 
-    print(f"Procesando imagen: {ruta.name}")
+    print(f"Procesando imagen: {str(ruta.name)!r}")
 
     rostros = detectar_rostros(frame)
 
@@ -169,13 +188,22 @@ def modo_imagen(ruta_str):
         print(f"Rostros detectados: {len(rostros)}")
 
     # Analizar, dibujar y registrar cada rostro
+    registros_lote = []
+    entradas = []
     for i, (x, y, w, h) in enumerate(rostros):
         recorte = frame[y:y + h, x:x + w]
         emocion, confianza = analizar_emocion(recorte)
 
         print(f"  Rostro {i + 1}: {emocion} ({confianza:.1f}%)")
         dibujar(frame, x, y, w, h, emocion, confianza)
-        registrar(emocion, confianza, origen=ruta.name)
+        registros_lote.append({'emocion': emocion, 'confianza': confianza, 'origen': ruta.name})
+
+    if registros_lote:
+        registrar(registros_lote)
+        entradas.append((emocion, confianza, ruta.name))
+
+    if entradas:
+        registrar(lote=entradas)
 
     # Guardar copia anotada junto al archivo original
     ruta_resultado = ruta.parent / f"{ruta.stem}_resultado{ruta.suffix}"
@@ -201,39 +229,61 @@ def modo_lote(ruta_carpeta):
 
     if not carpeta.exists() or not carpeta.is_dir():
         print(
-            f"Error: no se encontró la carpeta '{carpeta}' o no es un directorio.\n"
+            f"Error: no se encontró la carpeta {str(carpeta)!r} o no es un directorio.\n"
             "Verifica que la ruta sea correcta."
         )
         sys.exit(1)
 
-    extensiones = ('.jpg', '.jpeg', '.png', '.bmp', '.webp')
+    extensiones = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
     imagenes = [f for f in carpeta.iterdir() if f.suffix.lower() in extensiones]
 
     if not imagenes:
-        print(f"No se encontraron imágenes en la carpeta '{carpeta}'.")
+        print(f"No se encontraron imágenes en la carpeta {str(carpeta)!r}.")
         return
 
-    print(f"Procesando lote de {len(imagenes)} imágenes en: {carpeta.name}")
+    print(f"Procesando lote de {len(imagenes)} imágenes en: {str(carpeta.name)!r}")
+
+    resultados_lote = []
 
     for ruta_img in imagenes:
+        if os.path.getsize(str(ruta_img)) > _MAX_FILE_SIZE:
+            print(
+                f"  [Error] El archivo {ruta_img.name!r} supera el límite "
+                f"({_MAX_FILE_SIZE / (1024*1024):.0f} MB). Saltando."
+            )
+            continue
+
         # Reutilizamos la lógica de modo_imagen pero sin mostrar ventanas
         frame = cv2.imread(str(ruta_img))
         if frame is None:
-            print(f"  [Error] No se pudo leer la imagen: {ruta_img.name}")
+            print(f"  [Error] No se pudo leer la imagen: {str(ruta_img.name)!r}")
             continue
 
         rostros = detectar_rostros(frame)
-        print(f"  Imagen: {ruta_img.name} - Rostros: {len(rostros)}")
+        print(f"  Imagen: {str(ruta_img.name)!r} - Rostros: {len(rostros)}")
 
+        registros_lote = []
+        entradas = []
         for i, (x, y, w, h) in enumerate(rostros):
             recorte = frame[y:y + h, x:x + w]
             emocion, confianza = analizar_emocion(recorte)
             dibujar(frame, x, y, w, h, emocion, confianza)
-            registrar(emocion, confianza, origen=ruta_img.name)
+            registros_lote.append({'emocion': emocion, 'confianza': confianza, 'origen': ruta_img.name})
+
+        if registros_lote:
+            registrar(registros_lote)
+            resultados_lote.append((emocion, confianza, ruta_img.name))
+            entradas.append((emocion, confianza, ruta_img.name))
+
+        if entradas:
+            registrar(lote=entradas)
 
         # Guardar copia anotada
         ruta_resultado = ruta_img.parent / f"{ruta_img.stem}_resultado{ruta_img.suffix}"
         cv2.imwrite(str(ruta_resultado), frame)
+
+    if resultados_lote:
+        registrar_lote(resultados_lote)
 
     print(f"\nProceso de lote finalizado. Resultados guardados en {carpeta.resolve()}")
 
