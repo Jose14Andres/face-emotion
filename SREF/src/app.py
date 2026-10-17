@@ -110,12 +110,16 @@ def modo_webcam():
         # Analizar y registrar 1 de cada 5 frames para mantener fluidez
         if num_frame % 5 == 0:
             cache = {}
+            detecciones = []
             registros_lote = []
             entradas = []
             for i, (x, y, w, h) in enumerate(rostros):
                 recorte = frame[y:y + h, x:x + w]
                 emocion, confianza = analizar_emocion(recorte)
                 cache[i] = (emocion, confianza)
+                # Acumular cada detección para el CSV
+                detecciones.append((emocion, confianza, "webcam"))
+            registrar_lote(detecciones)
                 registros_lote.append({'emocion': emocion, 'confianza': confianza, 'origen': 'webcam'})
 
             # Registrar todas las detecciones del frame en una sola operación I/O
@@ -188,6 +192,7 @@ def modo_imagen(ruta_str):
         print(f"Rostros detectados: {len(rostros)}")
 
     # Analizar, dibujar y registrar cada rostro
+    detecciones = []
     registros_lote = []
     entradas = []
     for i, (x, y, w, h) in enumerate(rostros):
@@ -196,6 +201,9 @@ def modo_imagen(ruta_str):
 
         print(f"  Rostro {i + 1}: {emocion} ({confianza:.1f}%)")
         dibujar(frame, x, y, w, h, emocion, confianza)
+        detecciones.append((emocion, confianza, ruta.name))
+
+    registrar_lote(detecciones)
         registros_lote.append({'emocion': emocion, 'confianza': confianza, 'origen': ruta.name})
 
     if registros_lote:
@@ -262,12 +270,16 @@ def modo_lote(ruta_carpeta):
         rostros = detectar_rostros(frame)
         print(f"  Imagen: {str(ruta_img.name)!r} - Rostros: {len(rostros)}")
 
+        detecciones = []
         registros_lote = []
         entradas = []
         for i, (x, y, w, h) in enumerate(rostros):
             recorte = frame[y:y + h, x:x + w]
             emocion, confianza = analizar_emocion(recorte)
             dibujar(frame, x, y, w, h, emocion, confianza)
+            detecciones.append((emocion, confianza, ruta_img.name))
+
+        registrar_lote(detecciones)
             registros_lote.append({'emocion': emocion, 'confianza': confianza, 'origen': ruta_img.name})
 
         if registros_lote:

@@ -42,6 +42,37 @@ def _inicializar_csv():
     _csv_inicializado = True
 
 
+def registrar_lote(detecciones):
+    """
+    Añade múltiples filas de detección al CSV en una sola operación.
+
+    Parámetros
+    ----------
+    detecciones : list of tuple
+        Lista de tuplas con el formato (emocion, confianza, origen).
+    """
+    if not detecciones:
+        return
+
+    try:
+        _inicializar_csv()
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        filas = []
+        for emocion, confianza, origen in detecciones:
+            if isinstance(origen, str) and origen.lstrip().startswith(("=", "+", "-", "@")):
+                origen = f"'{origen}"
+            filas.append([timestamp, origen, emocion, f"{confianza:.2f}"])
+
+        with open(_RUTA_CSV, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerows(filas)
+
+    except Exception as error:
+        print(f"[registro] No se pudo escribir en el CSV: {error}")
+
+
+def registrar(emocion, confianza, origen="webcam"):
 def registrar(emocion, confianza=None, origen="webcam"):
     """
     Añade una o varias filas de detección al CSV.
