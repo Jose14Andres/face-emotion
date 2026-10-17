@@ -111,6 +111,7 @@ def modo_webcam():
         if num_frame % 5 == 0:
             cache = {}
             detecciones = []
+            registros_lote = []
             entradas = []
             for i, (x, y, w, h) in enumerate(rostros):
                 recorte = frame[y:y + h, x:x + w]
@@ -119,6 +120,11 @@ def modo_webcam():
                 # Acumular cada detección para el CSV
                 detecciones.append((emocion, confianza, "webcam"))
             registrar_lote(detecciones)
+                registros_lote.append({'emocion': emocion, 'confianza': confianza, 'origen': 'webcam'})
+
+            # Registrar todas las detecciones del frame en una sola operación I/O
+            if registros_lote:
+                registrar(registros_lote)
                 entradas.append((emocion, confianza, "webcam"))
 
             if entradas:
@@ -187,6 +193,7 @@ def modo_imagen(ruta_str):
 
     # Analizar, dibujar y registrar cada rostro
     detecciones = []
+    registros_lote = []
     entradas = []
     for i, (x, y, w, h) in enumerate(rostros):
         recorte = frame[y:y + h, x:x + w]
@@ -197,6 +204,10 @@ def modo_imagen(ruta_str):
         detecciones.append((emocion, confianza, ruta.name))
 
     registrar_lote(detecciones)
+        registros_lote.append({'emocion': emocion, 'confianza': confianza, 'origen': ruta.name})
+
+    if registros_lote:
+        registrar(registros_lote)
         entradas.append((emocion, confianza, ruta.name))
 
     if entradas:
@@ -260,6 +271,7 @@ def modo_lote(ruta_carpeta):
         print(f"  Imagen: {ruta_img.name} - Rostros: {len(rostros)}")
 
         detecciones = []
+        registros_lote = []
         entradas = []
         for i, (x, y, w, h) in enumerate(rostros):
             recorte = frame[y:y + h, x:x + w]
@@ -268,6 +280,10 @@ def modo_lote(ruta_carpeta):
             detecciones.append((emocion, confianza, ruta_img.name))
 
         registrar_lote(detecciones)
+            registros_lote.append({'emocion': emocion, 'confianza': confianza, 'origen': ruta_img.name})
+
+        if registros_lote:
+            registrar(registros_lote)
             resultados_lote.append((emocion, confianza, ruta_img.name))
             entradas.append((emocion, confianza, ruta_img.name))
 
