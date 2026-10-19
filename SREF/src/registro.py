@@ -72,16 +72,6 @@ def registrar_lote(detecciones):
         print(f"[registro] No se pudo escribir en el CSV: {error}")
 
 
-def registrar(emocion, confianza, origen="webcam"):
-def registrar(emocion, confianza=None, origen="webcam"):
-    """
-    Añade una o varias filas de detección al CSV.
-
-    Parámetros
-    ----------
-    emocion : str o list
-        Emoción detectada en español (p. ej. "Feliz"), o una lista de diccionarios
-        con claves 'emocion', 'confianza' y 'origen'.
 def registrar(emocion=None, confianza=None, origen="webcam", lote=None):
     """
     Añade una fila (o un lote de filas) de detección al CSV.
@@ -91,7 +81,7 @@ def registrar(emocion=None, confianza=None, origen="webcam", lote=None):
     emocion : str, opcional
         Emoción detectada en español (p. ej. "Feliz").
     confianza : float, opcional
-        Porcentaje de confianza de la emoción dominante (0.0 – 100.0).
+        Porcentaje de confianza de la emoción dominante (0.0 - 100.0).
     origen : str, opcional
         Fuente de la detección: "webcam" o el nombre del archivo de imagen.
         Por defecto "webcam".
@@ -102,30 +92,9 @@ def registrar(emocion=None, confianza=None, origen="webcam", lote=None):
     try:
         _inicializar_csv()
 
-        if isinstance(emocion, list):
-            registros = emocion
-        else:
-            registros = [{'emocion': emocion, 'confianza': confianza, 'origen': origen}]
-
-        filas = []
-        for reg in registros:
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            reg_origen = reg.get('origen', 'webcam')
-            reg_emocion = reg.get('emocion', '')
-            reg_confianza = reg.get('confianza', 0.0)
-
-            # Sanitizar 'origen' para evitar inyección de fórmulas CSV
-            if isinstance(reg_origen, str) and reg_origen.lstrip().startswith(("=", "+", "-", "@")):
-                reg_origen = f"'{reg_origen}"
-
-            filas.append([timestamp, reg_origen, reg_emocion, f"{reg_confianza:.2f}"])
-
-        if filas:
-            with open(_RUTA_CSV, "a", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerows(filas)
         with open(_RUTA_CSV, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             if lote:
                 filas = []
@@ -134,6 +103,18 @@ def registrar(emocion=None, confianza=None, origen="webcam", lote=None):
                     if isinstance(o, str) and o.lstrip().startswith(("=", "+", "-", "@")):
                         o = f"'{o}"
                     filas.append([timestamp, o, e, f"{c:.2f}"])
+                writer.writerows(filas)
+            elif isinstance(emocion, list):
+                filas = []
+                for reg in emocion:
+                    reg_origen = reg.get('origen', 'webcam')
+                    reg_emocion = reg.get('emocion', '')
+                    reg_confianza = reg.get('confianza', 0.0)
+
+                    # Sanitizar 'origen' para evitar inyección de fórmulas CSV
+                    if isinstance(reg_origen, str) and reg_origen.lstrip().startswith(("=", "+", "-", "@")):
+                        reg_origen = f"'{reg_origen}"
+                    filas.append([timestamp, reg_origen, reg_emocion, f"{reg_confianza:.2f}"])
                 writer.writerows(filas)
             elif emocion is not None and confianza is not None:
                 # Sanitizar 'origen' para evitar inyección de fórmulas CSV
