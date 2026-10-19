@@ -1,7 +1,5 @@
 import csv
-from src.registro import registrar, _RUTA_CSV
-import os
-from src.registro import registrar, registrar_lote
+from src.registro import registrar, registrar_lote, _RUTA_CSV
 
 def test_registrar_crea_csv(tmp_path, monkeypatch):
     # Mocking _RUTA_CSV to use a temporary directory
@@ -94,9 +92,6 @@ def test_registrar_formula_injection(tmp_path, monkeypatch):
         for i, origen in enumerate(malicious_origens, start=1):
             assert reader[i][1] == f"'{origen}"
 
-def test_registrar_lote(tmp_path, monkeypatch):
-
-def test_registrar_lote(tmp_path, monkeypatch):
 def test_registrar_lote_formula_injection(tmp_path, monkeypatch):
     test_csv = tmp_path / "test_registro.csv"
     monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
@@ -167,22 +162,6 @@ def test_registrar_lote_empty(tmp_path, monkeypatch):
         assert reader[3][1] == "'=cmd|' /C calc'!A0"
         assert reader[3][2] == "Neutral"
         assert reader[3][3] == "50.00"
-    malicious_origens = [
-        "=cmd|' /C calc'!A0",
-        "+1-1",
-        "-1+1",
-        "@SUM(1+1)"
-    ]
-
-    entradas = [("Neutral", 50.0, origen) for origen in malicious_origens]
-    registrar(lote=entradas)
-
-    with open(test_csv, "r", encoding="utf-8") as f:
-        reader = list(csv.reader(f))
-        assert len(reader) == 5 # Header + 4 rows
-        for i, origen in enumerate(malicious_origens, start=1):
-            assert reader[i][1] == f"'{origen}"
-
 def test_registrar_formula_injection_whitespace(tmp_path, monkeypatch):
     test_csv = tmp_path / "test_registro.csv"
     monkeypatch.setattr("src.registro._RUTA_CSV", test_csv)
